@@ -1,0 +1,43 @@
+{
+  "manifest_version": 2,
+  "name": "Secure Etherpad",
+  "version": "0.1.0",
+
+  "description": "Provide a simple encryption mechanism for Etherpad",
+  "icons": {
+    "128": "images/icon128.png"
+  },
+
+  "page_action" : {
+    "default_icon" : "images/icon.png",
+    "default_title" : "Secure Etherpad"
+  },
+
+  "background": {
+    "scripts": [
+      "scripts/background.js"
+    ]
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "*://*/*"
+      ],
+      "js": [
+        "scripts/xhook.js",
+        "scripts/json3.js",
+        "scripts/websocket_monkey_patch.js"
+      ],
+      "all_frames": true,
+      "run_at": "document_start"
+    }
+  ],
+  "permissions": [
+    "tabs",
+    "activeTab",
+    "webRequest",
+    "webRequestBlocking",
+    "<all_urls>"
+  ],
+  "minimum_chrome_version": "23"
+}
