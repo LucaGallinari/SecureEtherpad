@@ -5,12 +5,14 @@
 
   "description": "Provide a simple encryption mechanism for Etherpad",
   "icons": {
-    "128": "images/icon128.png"
+    "128": "images/icon512.png",
+    "512": "images/icon512.png"
   },
 
-  "page_action" : {
-    "default_icon" : "images/icon.png",
-    "default_title" : "Secure Etherpad"
+  "browser_action" : {
+    "default_icon" : "images/icon512.png",
+    "default_title" : "Secure Etherpad",
+    "default_popup": "views/popup.html"
   },
 
   "background": {
@@ -21,11 +23,13 @@
   "content_scripts": [
     {
       "matches": [
-        "*://*/*"
+        "http://*.oasis.sandstorm.io/*",
+        "https://*.oasis.sandstorm.io/*"
       ],
       "js": [
         "scripts/xhook.js",
-        "scripts/json3.js",
+        "scripts/json3.min.js",
+        "scripts/modified-socket.io.js",
         "scripts/websocket_monkey_patch.js"
       ],
       "all_frames": true,
@@ -37,7 +41,8 @@
     "activeTab",
     "webRequest",
     "webRequestBlocking",
-    "<all_urls>"
+    "http://*.oasis.sandstorm.io/*",
+    "https://*.oasis.sandstorm.io/*"
   ],
   "minimum_chrome_version": "23"
 }

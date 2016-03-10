@@ -1,3 +1,4 @@
+/*
 
 var scriptInserted = false;
 
@@ -10,9 +11,9 @@ chrome.tabs.onCreated.addListener(function (tab) {
     insertPageAction(tab.id, tab.url);
 });
 
-/**
+/!**
  * Check if the page is correct and insert the page action icon
- */
+ *!/
 function insertPageAction(tabId, url)
 {
     // console.log(url);
@@ -26,10 +27,4 @@ function insertPageAction(tabId, url)
     }
 }
 
-chrome.webRequest.onBeforeRequest.addListener(
-    function(details){
-        console.log(details.requestBody);
-    },
-    {urls: ["<all_urls>"]},
-    ["blocking", "requestBody"]
-);
+*/
