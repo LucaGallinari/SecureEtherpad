@@ -5,33 +5,44 @@
  value "popup.html".
  -->
 <html>
-  <head>
-    <title>Getting Started Extension's Popup</title>
-    <style>
-      body {
-        font-family: "Segoe UI", "Lucida Grande", Tahoma, sans-serif;
-        font-size: 100%;
-      }
-      #status {
-        /* avoid an excessively wide status text */
-        white-space: pre;
-        text-overflow: ellipsis;
-        overflow: hidden;
-        max-width: 400px;
-      }
-    </style>
+<head>
+    <title>Secure Etherpad</title>
 
-    <!--
-      - JavaScript and HTML must be in separate files: see our Content Security
-      - Policy documentation[1] for details and explanation.
-      -
-      - [1]: https://developer.chrome.com/extensions/contentSecurityPolicy
-     -->
-    <script src="../scripts/popup.js"></script>
-  </head>
-  <body>
-    <div id="status"></div>
-    <img id="image-result" hidden>
-  </body>
+    <link rel="stylesheet" type="text/css" href="popup.css">
+
+    <!-- JavaScript and HTML must be in separate files -->
+    <script src="popup.js"></script>
+</head>
+<body class="disabled">
+
+    <header>
+        <img id="logo" src="../images/icon512.png">
+    </header>
+    <div class="header">
+
+        <ul>
+            <li id="enabled" class="menu-item" role="button">
+                <div class="icon"></div>
+                <span id="enabled-yes" class="i18n_enabled_for_site"><strong>Attivato</strong> su questo sito</span>
+                <span id="enabled-no" class="i18n_disabled_for_site"><strong>Disattivato</strong> su questo sito</span>
+            </li>
+            <li class="menu-item">
+                <div>
+                    <select id="chooseAlgorithm">
+                        <option value="1">ROT 13</option>
+                        <option value="2">ROT n</option>
+                    </select>
+                </div>
+                <div>
+                    <label for="rotnNumber">ROT n Number</label>
+                    <input type="number" id="rotnNumber">
+                </div>
+            </li>
+            <li></li>
+        </ul>
+
+    </div>
+
+</body>
 </html>
 

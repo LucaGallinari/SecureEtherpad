@@ -1,0 +1,91 @@
+body {
+    font-family: Segoe UI, Arial, sans-serif;
+    font-size: 13px;
+    width: 250px;
+    margin: 0;
+    color: #545454;
+    background-color: #f8f6f2;
+    /*background-image: url(background.png);*/
+}
+
+header {
+    height: 85px;
+    /*background-image: url(background-main.png);*/
+}
+
+#logo {
+    display: block;
+    position: relative;
+    top: 15px;
+    margin: 0 auto;
+    width: 64px;
+    height: auto;
+}
+
+#wrapper {
+    padding: 0 20px;
+}
+
+ul {
+    margin: 0;
+    padding: 0;
+}
+
+li {
+    cursor: pointer;
+    list-style-type: none;
+    white-space: nowrap;
+    border-top: 1px dashed #a5a4a1;
+}
+
+li ul {
+    margin-left: 35px;
+}
+
+li li {
+    cursor: default;
+    padding: 10px 15px;
+}
+
+.menu-item {
+    padding: 10px 0 10px 15px;
+}
+
+.menu-item:hover {
+    background-color: #ece7df;
+}
+
+.icon {
+    display: inline-block;
+    width: 15px;
+    height: 15px;
+    margin-right: 15px;
+    vertical-align: top;
+}
+
+#enabled-yes strong {
+    font-weight: normal;
+    color: #12610e;
+}
+
+#enabled-no strong {
+    font-weight: normal;
+    color: #ac0505;
+}
+
+#enabled .icon {
+    background-image: url('../images/ok.png');
+}
+
+body.disabled #enabled .icon {
+    background-image: url('../images/no.png');
+}
+
+#enabled-no,
+body.disabled #enabled #enabled-yes {
+    display: none;
+}
+
+body.disabled #enabled #enabled-no {
+    display: inline;
+}
