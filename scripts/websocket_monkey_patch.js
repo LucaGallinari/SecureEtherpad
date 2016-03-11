@@ -1,5 +1,34 @@
 
-var actualCode = '(' + function() {
+function createCookie(name,value,days) {
+    if (days) {
+        var date = new Date();
+        date.setTime(date.getTime()+(days*24*60*60*1000));
+        var expires = "; expires="+date.toGMTString();
+    }
+    else var expires = "";
+    document.cookie = name+"="+value+expires+"; path=/";
+}
+
+chrome.runtime.sendMessage(
+    {cmd: "getStatus"},
+    function(response) {
+        console.log("cookie creato");
+        console.log(response.status);
+        createCookie('status', response.status, 1);
+    }
+);
+
+var actualCode = '(' +
+
+    function() {
+
+        /*
+        if (!response.status) {
+            console.log("Ext is DISABLED for this site");
+            return;
+        }
+        console.log("Ext is ENABLED for this site");
+        */
 
         function encodeROT13(data) {
             var encodedData = "";
@@ -12,6 +41,7 @@ var actualCode = '(' + function() {
             }
             return encodedData;
         }
+
         function decodeROT13(data) {
             var encodedData = "";
             for (var i = 0; i < data.length; ++i) {
@@ -24,6 +54,30 @@ var actualCode = '(' + function() {
             return encodedData;
         }
 
+        function createCookie(name,value,days) {
+            if (days) {
+                var date = new Date();
+                date.setTime(date.getTime()+(days*24*60*60*1000));
+                var expires = "; expires="+date.toGMTString();
+            }
+            else var expires = "";
+            document.cookie = name+"="+value+expires+"; path=/";
+        }
+
+        function readCookie(name) {
+            var nameEQ = name + "=";
+            var ca = document.cookie.split(';');
+            for(var i=0;i < ca.length;i++) {
+                var c = ca[i];
+                while (c.charAt(0)==' ') c = c.substring(1,c.length);
+                if (c.indexOf(nameEQ) == 0) return c.substring(nameEQ.length,c.length);
+            }
+            return null;
+        }
+
+        function eraseCookie(name) {
+            createCookie(name,"",-1);
+        }
 
 
         // save the original WebSocket
@@ -53,6 +107,12 @@ var actualCode = '(' + function() {
             // This script will always be executed before every others in the page, so this listener
             // will always be fired for first.
             wsAddListener(ws, 'message', function(event) {
+                var status = readCookie('status');
+                if (status == 'false') {
+                    return;
+                }
+                console.log("Ext is ENABLED for this site");
+
 
                 var dataObj = socketio.decodeString(event.data.substr(1));
 
@@ -119,26 +179,29 @@ var actualCode = '(' + function() {
 
         // override the send function of the original WebSocket
         OrigWebSocket.prototype.send = function(data) {
+            var status = readCookie('status');
 
-            if (data != '') {
-                var dataObj = socketio.decodeString(data.substr(1));
-                if (dataObj != null) {
-                    if (dataObj.hasOwnProperty('data')) {
-                        if (dataObj.data[0] == 'message') {
-                            //todo: check USER_CHANGES type
-                            var cTemp = data.substr(0,1);
-                            //console.log(dataObj);
-                            var packet = dataObj.data[1];
-                            //noinspection JSUnresolvedVariable
-                            var packetData = packet.data.changeset;
-                            var subs = packetData.split('$');
+            if (status != 'false') {
+                if (data != '') {
+                    var dataObj = socketio.decodeString(data.substr(1));
+                    if (dataObj != null) {
+                        if (dataObj.hasOwnProperty('data')) {
+                            if (dataObj.data[0] == 'message') {
+                                //todo: check USER_CHANGES type
+                                var cTemp = data.substr(0,1);
+                                //console.log(dataObj);
+                                var packet = dataObj.data[1];
+                                //noinspection JSUnresolvedVariable
+                                var packetData = packet.data.changeset;
+                                var subs = packetData.split('$');
 
-                            var mod = subs[0] + '$' + encodeROT13(subs[1]);
-                            dataObj.data[1].data.changeset = mod;
-                            console.log("from-> "+packetData+" to-> "+mod);
+                                var mod = subs[0] + '$' + encodeROT13(subs[1]);
+                                dataObj.data[1].data.changeset = mod;
+                                console.log("from-> "+packetData+" to-> "+mod);
 
-                            data = cTemp + socketio.encodeAsString(dataObj);
-                            //console.log(data);
+                                data = cTemp + socketio.encodeAsString(dataObj);
+                                //console.log(data);
+                            }
                         }
                     }
                 }
@@ -150,6 +213,11 @@ var actualCode = '(' + function() {
 
 
         xhook.after(function(request, response) {
+            var status = readCookie('status');
+            if (status == 'false') {
+                return;
+            }
+            console.log("Ext is ENABLED for this site");
 
             if (200 == response.status || 1223 == response.status) {
 
@@ -192,7 +260,9 @@ var actualCode = '(' + function() {
 
         //@ sourceURL=monkey_patch.js
 
-    } + ')();'; // the last () grant that the function will be called immediatly after being appended
+    }
+    //)
++ ')();'; // the last () grant that the function will be called immediatly after being appended
 
 
 // Append the script as a function

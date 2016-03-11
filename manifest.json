@@ -1,6 +1,7 @@
 {
   "manifest_version": 2,
   "name": "Secure Etherpad",
+  "author": "Luca Gallinari",
   "version": "0.1.0",
 
   "description": "Provide a simple encryption mechanism for Etherpad",
@@ -10,9 +11,9 @@
   },
 
   "browser_action" : {
-    "default_icon" : "images/icon512.png",
+    "default_icon" : "images/icon512-disabled.png",
     "default_title" : "Secure Etherpad",
-    "default_popup": "views/popup.html"
+    "default_popup": "popup/popup.html"
   },
 
   "background": {
@@ -23,14 +24,14 @@
   "content_scripts": [
     {
       "matches": [
-        "http://*.oasis.sandstorm.io/*",
-        "https://*.oasis.sandstorm.io/*"
+        "<all_urls>"
       ],
       "js": [
         "scripts/xhook.js",
         "scripts/json3.min.js",
         "scripts/modified-socket.io.js",
-        "scripts/websocket_monkey_patch.js"
+        "scripts/websocket_monkey_patch.js",
+        "scripts/content.js"
       ],
       "all_frames": true,
       "run_at": "document_start"
@@ -39,10 +40,8 @@
   "permissions": [
     "tabs",
     "activeTab",
-    "webRequest",
-    "webRequestBlocking",
-    "http://*.oasis.sandstorm.io/*",
-    "https://*.oasis.sandstorm.io/*"
+    "storage",
+    "<all_urls>"
   ],
   "minimum_chrome_version": "23"
 }

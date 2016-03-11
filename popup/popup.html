@@ -28,17 +28,20 @@
             </li>
             <li class="menu-item">
                 <div>
+                    <label for="chooseAlgorithm">Algorithm</label>
                     <select id="chooseAlgorithm">
-                        <option value="1">ROT 13</option>
-                        <option value="2">ROT n</option>
+                        <option value="ROT13">ROT 13</option>
+                        <option value="ROTN">ROT N</option>
                     </select>
                 </div>
-                <div>
-                    <label for="rotnNumber">ROT n Number</label>
-                    <input type="number" id="rotnNumber">
+                <div class="hidden" id="rotnNumberRow">
+                    <label for="rotnNumber">ROT N Number</label>
+                    <input type="number" id="rotnNumber" value="1" min="1" step="1">
                 </div>
             </li>
-            <li></li>
+            <li id="clearStorage" class="menu-item" role="button">
+                <span class="i18n_enabled_for_site">Reset/clear all data</span>
+            </li>
         </ul>
 
     </div>
