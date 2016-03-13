@@ -193,11 +193,17 @@ var actualCode = '(' +
                                 var packet = dataObj.data[1];
                                 //noinspection JSUnresolvedVariable
                                 var packetData = packet.data.changeset;
-                                var subs = packetData.split('$');
+                                // var subs = packetData.split('$');
+                                var splitIndex = packetData.indexOf('$');
 
-                                var mod = subs[0] + '$' + encodeROT13(subs[1]);
-                                dataObj.data[1].data.changeset = mod;
-                                console.log("from-> "+packetData+" to-> "+mod);
+                                var pad = packetData.substr(0, splitIndex - 1);
+                                var text = packetData.substr(splitIndex + 1);
+                                console.log("pad: " + pad);
+                                console.log("text: " + text);
+
+                                var encodedPayload = pad + '$' + encodeROT13(text);
+                                dataObj.data[1].data.changeset = encodedPayload;
+                                console.log("from-> "+packetData+" to-> "+encodedPayload);
 
                                 data = cTemp + socketio.encodeAsString(dataObj);
                                 //console.log(data);

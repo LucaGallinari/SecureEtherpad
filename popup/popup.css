@@ -48,11 +48,14 @@ li li {
 }
 
 .menu-item {
-    padding: 10px 0 10px 15px;
+    padding: 10px 15px;
 }
-
 .menu-item:hover {
     background-color: #ece7df;
+}
+
+.menu-item > div  {
+    margin-top:5px;
 }
 
 .icon {
@@ -108,6 +111,20 @@ select, input {
     box-sizing: border-box;
 }
 
+button {
+    font-family: inherit;
+    font-size: 100%;
+    padding: .5em 1em;
+    color: white;
+    border: 0 rgba(0,0,0,0);
+    background-color:#0078e7;
+    text-decoration: none;
+    border-radius: 2px;
+}
+button:hover {
+    background-color:#0098e7;
+}
+
 #chooseAlgorithm {
     width: 150px;
 }
@@ -117,4 +134,8 @@ select, input {
 
 .hidden {
     display: none;
+}
+
+.center {
+    text-align: center;
 }

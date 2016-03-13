@@ -1,13 +1,13 @@
-
 document.addEventListener("DOMContentLoaded", onLoad, false);
-window.addEventListener("unload", onUnload, false);
 
-function onLoad()
-{
+/**
+ * Add event listeners and retrieve settings for the current tab url
+ */
+function onLoad() {
     document.getElementById("enabled").addEventListener("click", toggleEnabled, false);
-    document.getElementById("chooseAlgorithm").addEventListener("change", algorithmChanged, false);
+    document.getElementById("saveChanges").addEventListener("click", saveChanges, false);
     document.getElementById("clearStorage").addEventListener("click", clearStorage, false);
-    document.getElementById("rotnNumber").addEventListener("blur", prova, false);
+    document.getElementById("chooseAlgorithm").addEventListener("change", setupPopupForm, false);
 
     chrome.tabs.query({active: true, windowId: chrome.windows.WINDOW_ID_CURRENT},
         function (tabs) {
@@ -16,14 +16,22 @@ function onLoad()
                     cmd: "getSettings",
                     url: extractDomain(tabs[0].url)
                 },
-                function(response) {
-                    applySettings(response.settings);
+                function (response) {
+                    if (response) {
+                        applySettings(response.settings);
+                    } else {
+                        alert("Error while retrieving the settings for the current tab URL.")
+                    }
                 }
             );
         }
     );
 }
 
+/**
+ * Setup the popup box based on the settings for the current tab url
+ * @param settings {object}
+ */
 function applySettings(settings) {
     if (settings.hasOwnProperty('enabled')) {
         if (settings.enabled) {
@@ -44,42 +52,50 @@ function applySettings(settings) {
     }
 }
 
-function onUnload()
-{
-}
+/**
+ * Modify the popup form based on the selected algorithm.
+ */
+function setupPopupForm() {
+    var algorithmSelect = document.getElementById("chooseAlgorithm");
+    var algorithmSelectVal = algorithmSelect.options[algorithmSelect.selectedIndex].value;
 
-
-function prova() {
-    console.log("prova");
-}
-
-function toggleEnabled()
-{
-    var disabled = document.body.classList.toggle("disabled");
-    if (disabled) {
-        chrome.browserAction.setIcon({path: '../images/icon25d.png'});
-    } else {
-        chrome.browserAction.setIcon({path: '../images/icon25.png'});
+    switch (algorithmSelectVal) {
+        case 'ROT13':
+            document.getElementById("rotnNumberRow").classList.add('hidden');
+            break;
+        case 'ROTN':
+            document.getElementById("rotnNumberRow").classList.remove('hidden');
+            break;
+        default:
+            alert("You choose a non-existent algorithm");
+            break;
     }
+}
 
-    // todo
+/**
+ * Event related function fired when the save button is clicked.
+ * Communicate to the background page that the extension must be enabled/disabled for the current tab url.
+ */
+function toggleEnabled() {
+    // if the ext is disabled it must be enabled
+    var enabled = document.body.classList.contains("disabled");
+
     chrome.tabs.query({active: true, windowId: chrome.windows.WINDOW_ID_CURRENT},
         function (tabs) {
             chrome.runtime.sendMessage(
                 {
                     cmd: "setStatus",
                     url: extractDomain(tabs[0].url),
-                    status: !disabled
+                    status: enabled
                 },
-                function(response) {
+                function (response) {
                     if (response.success) {
+                        if (document.body.classList.toggle("disabled")) {
+                            chrome.browserAction.setIcon({path: '../images/icon25d.png'});
+                        } else {
+                            chrome.browserAction.setIcon({path: '../images/icon25.png'});
+                        }
                         chrome.tabs.reload(tabs[0].id);
-                        /*
-                        chrome.tabs.sendMessage(
-                            tabs[0].id,
-                            {cmd: "reloadPage"}
-                        );
-                        */
                     } else {
                         console.log("Error while enabling/disabling the extension for " + tabs[0].url);
                     }
@@ -89,72 +105,72 @@ function toggleEnabled()
     );
 }
 
-function algorithmChanged() {
+/**
+ * Event related function fired when the save button is clicked.
+ * After some checks on the input fields it communicate to the background page the settings for the current url.
+ *
+ * @see sendChangeAlgorithmMessage()
+ */
+function saveChanges() {
     var algorithmSelect = document.getElementById("chooseAlgorithm");
     var algorithmSelectVal = algorithmSelect.options[algorithmSelect.selectedIndex].value;
 
-    if (algorithmSelectVal == 'ROT13') {
-
-        // todo
-        chrome.tabs.query({active: true, windowId: chrome.windows.WINDOW_ID_CURRENT},
-            function (tabs) {
-                chrome.runtime.sendMessage(
-                    {
-                        cmd: "changeAlgorithmSetting",
-                        url: extractDomain(tabs[0].url),
-                        algorithm: algorithmSelectVal,
-                        key: ''
-                    },
-                    function(response) {
-                        if (response.success) {
-                            document.getElementById("rotnNumberRow").classList.add('hidden');
-                        } else {
-                            console.log("Error while changing algorithm");
-                        }
-                    }
-                );
+    switch (algorithmSelectVal) {
+        case 'ROT13':
+            sendChangeAlgorithmMessage(algorithmSelectVal, 13, changeAlgorithmCallback);
+            break;
+        case 'ROTN':
+            var algorithmKey = document.getElementById("rotnNumber").value;
+            if (!checkPositiveNumber(algorithmKey)) {
+                alert("The key must be a number");
+                return;
             }
-        );
-
-    } else if (algorithmSelectVal == 'ROTN') {
-        var algorithmKey = document.getElementById("rotnNumber").value;
-
-        // todo
-        chrome.tabs.query({active: true, windowId: chrome.windows.WINDOW_ID_CURRENT},
-            function (tabs) {
-                chrome.runtime.sendMessage(
-                    {
-                        cmd: "changeAlgorithmSetting",
-                        url: extractDomain(tabs[0].url),
-                        algorithm: algorithmSelectVal,
-                        key: algorithmKey
-                    },
-                    function(response) {
-                        if (response.success) {
-                            document.getElementById("rotnNumberRow").classList.remove('hidden');
-                        } else {
-                            console.log("Error while changing algorithm");
-                        }
-                    }
-                );
-            }
-        );
-    } else {
-        alert("error");
+            sendChangeAlgorithmMessage(algorithmSelectVal, algorithmKey, changeAlgorithmCallback);
+            break;
+        default:
+            alert("You choose a non-existent algorithm");
+            break;
     }
 }
 
+/**
+ * Remove all saved settings from the storage.
+ */
 function clearStorage() {
-    chrome.storage.local.clear(function() {
-        var error = chrome.runtime.lastError;
-        if (error) {
-            console.error(error);
+    chrome.storage.local.clear(function () {
+        if (chrome.runtime.lastError) {
+            alert("An error occured while clearing the storage");
         } else {
-            console.log("Storage has been cleared successfully");
+            chrome.tabs.reload(tabs[0].id);
         }
     });
 }
 
+/**
+ * Communicate to the background page that settings have been changed for the current tab url.
+ * @param algorithm {string}
+ * @param key {int}
+ * @param callback {function}
+ */
+function sendChangeAlgorithmMessage(algorithm, key, callback) {
+    chrome.tabs.query({active: true, windowId: chrome.windows.WINDOW_ID_CURRENT},
+        function (tabs) {
+            chrome.runtime.sendMessage({
+                cmd: "changeAlgorithmSetting",
+                url: extractDomain(tabs[0].url),
+                algorithm: algorithm,
+                key: key
+            }, callback);
+        }
+    );
+}
+
+/**
+ * Extract the domain string from a given "url".
+ * @param url
+ * @returns {string}
+ * @see http://stackoverflow.com/questions/8498592/extract-root-domain-name-from-string
+ */
 function extractDomain(url) {
     var domain;
     //find & remove protocol (http, ftp, etc.) and get domain
@@ -171,22 +187,26 @@ function extractDomain(url) {
     return domain;
 }
 
-
-/*
-function checkNumber(number) {
-    if (number > 0) {
-        return true;
-    }
-    return false;
-}
-*/
-/*
- function callback(){
-
- if (chrome.runtime.lastError) {
- console.log(chrome.runtime.lastError.message);
- } else {
- // Tab exists
- }
- }
+/**
+ * Check if "num" is a positive valid number
+ * @param num
+ * @returns {boolean}
  */
+function checkPositiveNumber(num) {
+    return !(isNaN(num) || num < 0);
+}
+
+/**
+ * Used as a callback in the saveChanges function
+ * @param response
+ * @see saveChanges()
+ */
+function changeAlgorithmCallback(response) {
+    if (response) {
+        if (response.success) {
+            chrome.tabs.reload(tabs[0].id);
+        } else {
+            console.log("Error while changing algorithm");
+        }
+    }
+}
