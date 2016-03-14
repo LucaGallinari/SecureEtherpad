@@ -13,27 +13,20 @@ var actualCode = '(' +
         var DEBUG = true;
 
         /**
-         * Apply encoding/decoding based on the given "algorithm"
-         * @param algorithm {string} algorithm to use
-         * @param data {string}
-         * @param key {string} if needed
-         * @param encode {boolean} encode if true, decode if false
-         * @returns {string}
+         * Read a cookie
+         * @param name {string}
+         * @returns {string|null}
+         * @see http://stackoverflow.com/a/24103596/4670153
          */
-        function applySecureAlgorithm(algorithm, key, data, encode) {
-            var postProcessData;
-            switch (algorithm) {
-                case 'ROT13':
-                    postProcessData = rotateAlgorithm(data, 13, encode);
-                    break;
-                case 'ROTN':
-                    postProcessData = rotateAlgorithm(data, parseInt(key), encode);
-                    break;
-                default:
-                    console.log('Invalid algorithm!');
-                    break;
+        function readCookie(name) {
+            var nameEQ = name + "=";
+            var ca = document.cookie.split(';');
+            for (var i = 0; i < ca.length; i++) {
+                var c = ca[i];
+                while (c.charAt(0) == ' ') c = c.substring(1, c.length);
+                if (c.indexOf(nameEQ) == 0) return c.substring(nameEQ.length, c.length);
             }
-            return postProcessData;
+            return null;
         }
 
         /**
@@ -59,26 +52,104 @@ var actualCode = '(' +
         }
 
         /**
-         * Read a cookie
-         * @param name {string}
-         * @returns {string|null}
-         * @see http://stackoverflow.com/a/24103596/4670153
+         * Apply encoding/decoding based on the given "algorithm"
+         * @param algorithm {string} algorithm to use
+         * @param data {string}
+         * @param key {string} if needed
+         * @param encode {boolean} encode if true, decode if false
+         * @returns {string}
          */
-        function readCookie(name) {
-            var nameEQ = name + "=";
-            var ca = document.cookie.split(';');
-            for (var i = 0; i < ca.length; i++) {
-                var c = ca[i];
-                while (c.charAt(0) == ' ') c = c.substring(1, c.length);
-                if (c.indexOf(nameEQ) == 0) return c.substring(nameEQ.length, c.length);
+        function applyAlgorithmToData(algorithm, key, data, encode) {
+            var postProcessData;
+            switch (algorithm) {
+                case 'ROT13':
+                    postProcessData = rotateAlgorithm(data, 13, encode);
+                    break;
+                case 'ROTN':
+                    postProcessData = rotateAlgorithm(data, parseInt(key), encode);
+                    break;
+                default:
+                    console.log('Invalid algorithm!');
+                    break;
             }
-            return null;
+            return postProcessData;
+        }
+
+        /**
+         * Use socketio.js methods to decode the the given packet and replace the text with the encoded/decoded one.
+         * @param packet {object}
+         * @param encode {boolean}
+         * @return {object|boolean}
+         */
+        function decodePacketAndApplyAlgorithm(packet, encode) {
+
+            var packetData = socketio.decodePacket(packet, null);
+            if (
+                !packetData.hasOwnProperty('type') || !packetData.hasOwnProperty('data') ||
+                packetData.type != 'message'
+            ) {
+                return false;
+            }
+
+            var packetObj = socketio.decodeString(packetData.data);
+            if (
+                !packetObj || !packetObj.hasOwnProperty('data') ||
+                packetObj.data.length != 2 || !packetObj.data[1].hasOwnProperty('data')
+            ) {
+                return false;
+            }
+
+            // If we are decoding, check if this packet was already decode, if so just return false
+            if (
+                encode == false &&
+                packetObj.data[1].hasOwnProperty('decoded')
+            ) {
+                return false;
+            }
+
+            // We want only newChanges or userChanges
+            var msg = packetObj.data[1].data;
+            if (
+                !msg.hasOwnProperty('type') ||
+                (msg.type != 'NEW_CHANGES' && msg.type != 'USER_CHANGES')
+            ) {
+                return false;
+            }
+
+            if (DEBUG) {
+                console.log("Received a message that must be decoded:");
+            }
+
+            // todo: save those in a global variable
+            var secureAlgorithm = readCookie('secureEtherpadAlgorithm');
+            var secureKey = readCookie('secureEtherpadKey');
+
+            // split by the first '$' to get the pad and the text
+            var msgData = msg.changeset;
+            var splitIndex = msgData.indexOf('$');
+            var pad = msgData.substr(0, splitIndex);
+            var text = msgData.substr(splitIndex + 1);
+
+            var postProcessData = applyAlgorithmToData(secureAlgorithm, secureKey, text, encode);
+
+            if (DEBUG) {
+                console.log("Pad: " + pad);
+                console.log("Before alg. text: " + text);
+                console.log("After alg. text: " + postProcessData);
+            }
+
+            // save the data back into propers objects
+            packetObj.data[1].data.changeset = pad + '$' + postProcessData;
+            if (encode == false) {
+                packetObj.data[1].decoded = true; // flag that avoid an infinite decode
+            }
+            packetData.data = socketio.encodeAsString(packetObj);
+
+            return socketio.encodePacket(packetData, null);
         }
 
         // save the original WebSocket
-        if (DEBUG) {
-            console.log("Overriding the WebSocket implementation");
-        }
+        if (DEBUG) {console.log("Overriding the WebSocket implementation");}
 
         var OrigWebSocket = window.WebSocket;
         var callWebSocket = OrigWebSocket.apply.bind(OrigWebSocket);
@@ -107,81 +178,16 @@ var actualCode = '(' +
 
                 // the extension is disabled for this site
                 if (readCookie('secureEtherpadEnabled') !== 'true') {
-                    if (DEBUG) {
-                        console.log("SecureEtherpad is DISABLED for this site");
-                    }
+                    if (DEBUG) {console.log("SecureEtherpad is DISABLED for this site");}
                     return;
                 }
 
-                var secureAlgorithm = readCookie('secureEtherpadAlgorithm');
-                var secureKey = readCookie('secureEtherpadKey');
+                // check that the event data is a 'message' (type=4)
+                if (!('data' in event) || event.data.charAt(0) != '4') {return;}
 
-                if (
-                    !('data' in event) ||
-                    event.data.charAt(0) != '4'
-                ) {
-                    return;
-                }
-
-
-
-
-
-                var packet = socketio.decodePacket(event.data, null);
-                if (
-                    !packet.hasOwnProperty('type') || !packet.hasOwnProperty('data') ||
-                    packet.type != 'message'
-                ) {
-                    return;
-                }
-
-                var packetObj = socketio.decodeString(packet.data);
-                if (
-                    !packetObj || !packetObj.hasOwnProperty('data') ||
-                    packetObj.data.length != 2 || !packetObj.data[1].hasOwnProperty('data') ||
-                    packetObj.data[1].hasOwnProperty('decoded') // This packet was already decode so let it be propagated to other listeners
-                ) {
-                    return;
-                }
-
-                var msg = packetObj.data[1].data;
-                if (
-                    !msg.hasOwnProperty('type') ||
-                    msg.type != 'NEW_CHANGES'
-                ) {
-                    return;
-                }
-
-                if (DEBUG) {
-                    console.log("Received a message that must be decoded:");
-                }
-
-                // split by the first '$' to get the pad and the text
-                var msgData = msg.changeset;
-                var splitIndex = msgData.indexOf('$');
-                var pad = msgData.substr(0, splitIndex);
-                var text = msgData.substr(splitIndex + 1);
-                var decodedText = applySecureAlgorithm(secureAlgorithm, secureKey, text, false);
-
-                if (DEBUG) {
-                    console.log("Pad: " + pad);
-                    console.log("Encoeded text: " + text);
-                    console.log("Decoded text: " + decodedText);
-                }
-
-                // save the data back into propers object
-                packetObj.data[1].data.changeset = pad + '$' + decodedText;
-                packetObj.data[1].decoded = true; // flag that avoid an infinite decode
-                packet.data = socketio.encodeAsString(packetObj);
-                var eventData = socketio.encodePacket(packet, null);
-
-
-
-
-
-                if (DEBUG) {
-                    console.log("Post-decoding event data: " + eventData);
-                }
+                var eventData = decodePacketAndApplyAlgorithm(event.data, false);
+                if (eventData === false) {return;}// invalid packet
+                if (DEBUG) {console.log("Post-decoding event data: " + eventData);}
 
                 // Don't propagate the event to others listeners.
                 // I do this because the data of the event are READ ONLY, so I have to fire a new
@@ -210,45 +216,14 @@ var actualCode = '(' +
         OrigWebSocket.prototype.send = function(data) {
 
             // the extension is enabled for this site
-            if (readCookie('secureEtherpadEnabled') === 'true') {
-
-                var secureAlgorithm = readCookie('secureEtherpadAlgorithm');
-                var secureKey = readCookie('secureEtherpadKey');
-
-                if (data != '') {
-                    var dataObj = socketio.decodeString(data.substr(1));
-                    if (dataObj && dataObj.hasOwnProperty('data')) {
-                        if (dataObj.data[0] == 'message') {
-                            //todo: check USER_CHANGES type
-                            var cTemp = data.substr(0,1);
-                            //console.log(dataObj);
-                            var packet = dataObj.data[1];
-                            //noinspection JSUnresolvedVariable
-                            var packetData = packet.data.changeset;
-                            // var subs = packetData.split('$');
-                            var splitIndex = packetData.indexOf('$');
-
-                            var pad = packetData.substr(0, splitIndex);
-                            var text = packetData.substr(splitIndex + 1);
-
-                            if (DEBUG) {
-                                console.log(packetData);
-                                console.log("pad: " + pad);
-                                console.log("text: " + text);
-                            }
-
-                            var encodedPayload = pad + '$' + applySecureAlgorithm(secureAlgorithm, secureKey, text, true);
-                            dataObj.data[1].data.changeset = encodedPayload;
-
-                            if (DEBUG) {
-                                console.log("pad: " + pad);
-                                console.log("text: " + text);
-                                console.log("from-> "+packetData+" to-> "+encodedPayload);
-                            }
-
-                            data = cTemp + socketio.encodeAsString(dataObj);
+            if (data != '') {
+                if (readCookie('secureEtherpadEnabled') === 'true') {
+                    if (data.charAt(0) == '4') {
+                        var ret = decodePacketAndApplyAlgorithm(data, true);
+                        if (ret !== false) {
+                            //noinspection JSUnusedAssignment
+                            data = ret;
                         }
-
                     }
                 }
             }
@@ -263,9 +238,6 @@ var actualCode = '(' +
             // the extension is disabled for this site
             if (readCookie('secureEtherpadEnabled') !== 'true') {return;}
 
-            var secureAlgorithm = readCookie('secureEtherpadAlgorithm');
-            var secureKey = readCookie('secureEtherpadKey');
-
             if (200 == response.status || 1223 == response.status) {
 
                 // todo: something better than indexof?
@@ -278,11 +250,17 @@ var actualCode = '(' +
                         if (packet && packet.hasOwnProperty('data')) {
 
                             if (packet.data[1].type == "CLIENT_VARS") {
+
+                                var secureAlgorithm = readCookie('secureEtherpadAlgorithm');
+                                var secureKey = readCookie('secureEtherpadKey');
+
+                                //noinspection JSUnresolvedVariable
                                 var initText = packet.data[1].data.collab_client_vars.initialAttributedText.text;
-                                var decodedText = applySecureAlgorithm(secureAlgorithm, secureKey, initText, false);
+                                var decodedText = applyAlgorithmToData(secureAlgorithm, secureKey, initText, false);
 
                                 if (DEBUG) {console.log("Decoded data: " + decodedText);}
                                 // save text in the packet
+                                //noinspection JSUnresolvedVariable
                                 packet.data[1].data.collab_client_vars.initialAttributedText.text = decodedText;
                                 // write the encoded packet back in the packets payload
                                 packets[i].data = socketio.encodeAsString(packet);
@@ -297,7 +275,7 @@ var actualCode = '(' +
             }
         });
 
-        //@ sourceURL=monkey_patch.js
+        //@ sourceURL=monkey_patcher.js
     }
     //)
 + ')();'; // the last () grant that the function will be called immediatly after being appended
