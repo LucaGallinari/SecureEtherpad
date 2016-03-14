@@ -5,12 +5,10 @@ body {
     margin: 0;
     color: #545454;
     background-color: #f8f6f2;
-    /*background-image: url(background.png);*/
 }
 
 header {
     height: 85px;
-    /*background-image: url(background-main.png);*/
 }
 
 #logo {
@@ -50,12 +48,13 @@ li li {
 .menu-item {
     padding: 10px 15px;
 }
+
 .menu-item:hover {
     background-color: #ece7df;
 }
 
-.menu-item > div  {
-    margin-top:5px;
+.menu-item > div {
+    margin-top: 5px;
 }
 
 .icon {
@@ -93,7 +92,6 @@ body.disabled #enabled #enabled-no {
     display: inline;
 }
 
-
 select, input {
     display: inline-block;
     height: 2.25em;
@@ -116,18 +114,20 @@ button {
     font-size: 100%;
     padding: .5em 1em;
     color: white;
-    border: 0 rgba(0,0,0,0);
-    background-color:#0078e7;
+    border: 0 rgba(0, 0, 0, 0);
+    background-color: #0078e7;
     text-decoration: none;
     border-radius: 2px;
 }
+
 button:hover {
-    background-color:#0098e7;
+    background-color: #0098e7;
 }
 
 #chooseAlgorithm {
     width: 150px;
 }
+
 #rotnNumber {
     width: 75px;
 }

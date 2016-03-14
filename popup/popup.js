@@ -1,3 +1,11 @@
+/**
+ * popup.js
+ *
+ * @category popup
+ * @package  SecureEtherpad
+ * @author   Luca Gallinari <luke.gallinari@gmail.com>
+ */
+
 document.addEventListener("DOMContentLoaded", onLoad, false);
 
 /**
@@ -86,7 +94,7 @@ function toggleEnabled() {
                 {
                     cmd: "setStatus",
                     url: extractDomain(tabs[0].url),
-                    status: enabled
+                    enabled: enabled
                 },
                 function (response) {
                     if (response.success) {
@@ -117,7 +125,7 @@ function saveChanges() {
 
     switch (algorithmSelectVal) {
         case 'ROT13':
-            sendChangeAlgorithmMessage(algorithmSelectVal, 13, changeAlgorithmCallback);
+            sendChangeAlgorithmMessage(algorithmSelectVal, 13);
             break;
         case 'ROTN':
             var algorithmKey = document.getElementById("rotnNumber").value;
@@ -125,7 +133,7 @@ function saveChanges() {
                 alert("The key must be a number");
                 return;
             }
-            sendChangeAlgorithmMessage(algorithmSelectVal, algorithmKey, changeAlgorithmCallback);
+            sendChangeAlgorithmMessage(algorithmSelectVal, algorithmKey);
             break;
         default:
             alert("You choose a non-existent algorithm");
@@ -150,17 +158,27 @@ function clearStorage() {
  * Communicate to the background page that settings have been changed for the current tab url.
  * @param algorithm {string}
  * @param key {int}
- * @param callback {function}
  */
-function sendChangeAlgorithmMessage(algorithm, key, callback) {
+function sendChangeAlgorithmMessage(algorithm, key) {
     chrome.tabs.query({active: true, windowId: chrome.windows.WINDOW_ID_CURRENT},
         function (tabs) {
-            chrome.runtime.sendMessage({
-                cmd: "changeAlgorithmSetting",
-                url: extractDomain(tabs[0].url),
-                algorithm: algorithm,
-                key: key
-            }, callback);
+            chrome.runtime.sendMessage(
+                {
+                    cmd: "changeAlgorithmSetting",
+                    url: extractDomain(tabs[0].url),
+                    algorithm: algorithm,
+                    key: key
+                },
+                function (response) {
+                    if (response) {
+                        if (response.success) {
+                            chrome.tabs.reload(tabs[0].id);
+                        } else {
+                            console.log("Error while changing algorithm");
+                        }
+                    }
+                }
+            );
         }
     );
 }
@@ -194,19 +212,4 @@ function extractDomain(url) {
  */
 function checkPositiveNumber(num) {
     return !(isNaN(num) || num < 0);
-}
-
-/**
- * Used as a callback in the saveChanges function
- * @param response
- * @see saveChanges()
- */
-function changeAlgorithmCallback(response) {
-    if (response) {
-        if (response.success) {
-            chrome.tabs.reload(tabs[0].id);
-        } else {
-            console.log("Error while changing algorithm");
-        }
-    }
 }

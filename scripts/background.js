@@ -1,32 +1,25 @@
+/**
+ * background.js
+ *
+ * @category scripts
+ * @package  SecureEtherpad
+ * @author   Luca Gallinari <luke.gallinari@gmail.com>
+ */
 
-chrome.runtime.onStartup.addListener(function() {
-    loadSettings();
-});
-
-chrome.tabs.onCreated.addListener(function() {
-});
-
-chrome.tabs.onUpdated.addListener(function(tabId, changeInfo, tab) {
-    updateIconForTab(tab);
-});
-
-chrome.tabs.onActivated.addListener(function(info) {
-    chrome.tabs.get(info.tabId, function(tab) {
-        updateIconForTab(tab);
-    });
-});
-
-/*
-chrome.runtime.onInstalled.addListener(function() {
-    changeAlgorithmSetting('ROT13');
-});
-*/
+var DEBUG = true;
 
 // it's an object, not an array (this is important to avoid a lot of problems)
-var settings = {};
+var SETTINGS = {};
 
+/**
+ *
+ * @param url {string}
+ * @param algorithm {string}
+ * @param key {int}
+ * @returns {boolean}
+ */
 function changeAlgorithmSetting(url, algorithm, key) {
-    switch(algorithm) {
+    switch (algorithm) {
         case 'ROT13':
             key = 13;
             break;
@@ -38,39 +31,53 @@ function changeAlgorithmSetting(url, algorithm, key) {
             break;
     }
 
-    if (settings[url]) {
-        settings[url].algorithm = algorithm;
-        settings[url].key = key;
-    } else {
-        settings[url] = {
+    if (SETTINGS[url]) {// already existent settings
+        SETTINGS[url].algorithm = algorithm;
+        SETTINGS[url].key = key;
+    } else {// non existent settings for this url
+        SETTINGS[url] = {
             'enabled': false,
             'algorithm': algorithm,
             'key': key
         }
     }
 
-    console.log("Algorithm changed to " + algorithm + " with key " + key + " for " + url);
+    if (DEBUG) {
+        console.log("Algorithm changed to " + algorithm + " with key " + key + " for " + url);
+    }
 
     saveSettings();
 
     return true;
 }
 
+/**
+ * Check if the extension is enabled/disabled for the given "url".
+ * @param url {string}
+ * @returns {boolean}
+ * @see setStatus
+ */
 function getStatus(url) {
-    if (settings.hasOwnProperty(url) && settings[url]) {
-        if (settings[url].enabled) {
+    if (SETTINGS.hasOwnProperty(url) && SETTINGS[url]) {
+        if (SETTINGS[url].enabled) {
             return true;
         }
     }
     return false;
 }
 
+/**
+ * Enable/disable the extension for a given "url"
+ * @param url {string}
+ * @param status {boolean}
+ * @returns {boolean}
+ * @see getStatus
+ */
 function setStatus(url, status) {
-
-    if (settings[url]) {
-        settings[url].enabled = status;
+    if (SETTINGS[url]) {
+        SETTINGS[url].enabled = status;
     } else {
-        settings[url] = {
+        SETTINGS[url] = {
             'url': url,
             'enabled': status,
             'algorithm': 'ROT13',
@@ -78,16 +85,25 @@ function setStatus(url, status) {
         };
     }
 
-    console.log("Plugin " + (status ? 'enabled' : 'disabled') + " for " + url);
+    if (DEBUG) {
+        console.log("Plugin " + (status ? 'enabled' : 'disabled') + " for " + url);
+    }
 
     saveSettings();
-
     return true;
 }
 
+/**
+ * Retrieve setttings for the given "url"
+ * @param url {string}
+ * @returns {object}
+ * @see saveSettings
+ * @see loadSettings
+ */
 function getSettings(url) {
-    if (!settings[url]) {
-        settings[url] = {
+    // if settings for this url does not exists, create a new default settings for it
+    if (!SETTINGS[url]) {
+        SETTINGS[url] = {
             'url': url,
             'enabled': false,
             'algorithm': 'ROT13',
@@ -95,35 +111,59 @@ function getSettings(url) {
         };
     }
     // there is no need to save the default value in the storage
-    return settings[url];
+    return SETTINGS[url];
 }
 
+/**
+ * Save settings in the storage
+ * @see loadSettings
+ * @see getSettings
+ */
 function saveSettings() {
-    chrome.storage.local.set({settings: settings}, function() {
-        if (chrome.runtime.lastError) {
-            console.log(chrome.runtime.lastError.message);
-        } else {
-            console.log('Settings saved');
+    chrome.storage.local.set({settings: SETTINGS}, function () {
+        if (DEBUG) {
+            if (chrome.runtime.lastError) {
+                console.log(chrome.runtime.lastError.message);
+            } else {
+                console.log('Settings saved');
+            }
         }
     });
 }
 
+/**
+ * Load settings from the storage
+ * @see saveSettings
+ * @see getSettings
+ */
 function loadSettings() {
-    chrome.storage.local.get(['settings'], function(result) {
-        if (result.settings) {
-            settings = result.settings;
-        } else {
-            settings = {};
+    chrome.storage.local.get(
+        ['settings'],
+        /**@param {{settings:object}} result*/
+        function (result) {
+            if (result.settings) {
+                SETTINGS = result.settings;
+                if (DEBUG) {
+                    console.log("Loaded settings:");
+                    console.log(SETTINGS);
+                }
+            } else {
+                SETTINGS = {};
+            }
         }
-    });
+    );
 }
 
+/**
+ * Set the correct icon the given "tab"
+ * @param tab {object}
+ */
 function updateIconForTab(tab) {
-    if (settings) {
+    if (SETTINGS) {
         if (tab.hasOwnProperty('url') && tab.url) {
             var urlDomain = extractDomain(tab.url);
-            if (settings.hasOwnProperty(urlDomain) && settings[urlDomain]) {
-                if (settings[urlDomain].enabled) {
+            if (SETTINGS.hasOwnProperty(urlDomain) && SETTINGS[urlDomain]) {
+                if (SETTINGS[urlDomain].enabled) {
                     chrome.browserAction.setIcon({path: '../images/icon25.png'});
                 } else {
                     chrome.browserAction.setIcon({path: '../images/icon25d.png'});
@@ -133,10 +173,18 @@ function updateIconForTab(tab) {
             }
         }
     } else {
-        console.log("No settings found for the tab");
+        if (DEBUG) {
+            console.log("No settings found for the tab");
+        }
     }
 }
 
+/**
+ * Extract the domain string from a given "url".
+ * @param url
+ * @returns {string}
+ * @see http://stackoverflow.com/questions/8498592/extract-root-domain-name-from-string
+ */
 function extractDomain(url) {
     var domain;
     //find & remove protocol (http, ftp, etc.) and get domain
@@ -153,43 +201,81 @@ function extractDomain(url) {
     return domain;
 }
 
-messageListener = function(request, sender, sendResponse) {
-    //todo: switch
-    if (request.cmd == "getSettings") {
-        sendResponse({
-            settings: getSettings(request.url)
-        });
-    } else if (request.cmd == "getStatus") {
-        sendResponse({
-            status: getStatus(extractDomain(sender.tab.url))
-        });
-    } else if (request.cmd == "setStatus") {
-        sendResponse({
-            success: setStatus(request.url, request.status)
-        });
-    } else if (request.cmd == "changeAlgorithmSetting") {
-        sendResponse({
-            success: changeAlgorithmSetting(request.url, request.algorithm, request.key)
-        });
+/**
+ * Based on the given "request", it calls the correct function.
+ * @param request {object}
+ * @param sender {object}
+ * @param callback {function}
+ */
+function messageListener(request, sender, callback) {
+    switch(request.cmd) {
+        case "getSettings":
+            var url;
+            if (request.hasOwnProperty('url')) {
+                url = request.url;
+            } else {
+                url = extractDomain(sender.tab.url);
+            }
+            callback({
+                settings: getSettings(url)
+            });
+            break;
+        case "getStatus":
+            callback({
+                enabled: getStatus(extractDomain(sender.tab.url))
+            });
+            break;
+        case "setStatus":
+            callback({
+                success: setStatus(request.url, request.enabled)
+            });
+            break;
+        case "changeAlgorithmSetting":
+            callback({
+                success: changeAlgorithmSetting(request.url, request.algorithm, request.key)
+            });
+            break;
     }
-};
+}
 
 chrome.runtime.onMessage.addListener(messageListener);
 
-loadSettings();
+chrome.runtime.onStartup.addListener(function startup() {
+    console.log("startup");
+    loadSettings();
+});
 
+chrome.tabs.onCreated.addListener(function created() {
+    console.log("created");
+});
 
+chrome.tabs.onUpdated.addListener(function updated(tabId, changeInfo, tab) {
+    updateIconForTab(tab);
+});
 
-/*
-chrome.storage.onChanged.addListener(function(changes, namespace) {
-    for (var key in changes) {
-        var storageChange = changes[key];
-        console.log('Storage key "%s" in namespace "%s" changed. ' +
-            'Old value was "%s", new value is "%s".',
-            key,
-            namespace,
-            storageChange.oldValue,
-            storageChange.newValue);
+chrome.tabs.onActivated.addListener(function activated(info) {
+    chrome.tabs.get(info.tabId, function (tab) {
+        updateIconForTab(tab);
+    });
+});
+
+/**
+ * Debug every changes made to the storage
+ */
+chrome.storage.onChanged.addListener(function changed(changes, namespace) {
+    if (DEBUG) {
+        for (var key in changes) {
+            if (changes.hasOwnProperty(key)) {
+                var storageChange = changes[key];
+                console.log('Storage key "%s" in namespace "%s" changed. ' +
+                    'Old value was "%s", new value is "%s".',
+                    key,
+                    namespace,
+                    storageChange.oldValue,
+                    storageChange.newValue);
+            }
+        }
     }
 });
-*/
+
+loadSettings();
