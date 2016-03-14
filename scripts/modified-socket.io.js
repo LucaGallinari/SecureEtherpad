@@ -103,7 +103,7 @@ var actualCode = '(' + function () {
             }
 
             return p;
-        }
+        };
 
         function decodeBase64Packet(msg, binaryType) {
             var type = packetslist[msg.charAt(0)];
@@ -121,7 +121,7 @@ var actualCode = '(' + function () {
             return {type: type, data: data};
         }
 
-        function decodePacket(data, binaryType, utf8decode) {
+        socketio.decodePacket = function(data, binaryType, utf8decode) {
             // String data
             if (typeof data == 'string' || data === undefined) {
                 if (data.charAt(0) == 'b') {
@@ -155,7 +155,7 @@ var actualCode = '(' + function () {
                 rest = new Blob([rest]);
             }
             return {type: packetslist[type], data: rest};
-        }
+        };
 
         socketio.decodePayload = function(data, binaryType) {
             var packets = [];
@@ -196,7 +196,7 @@ var actualCode = '(' + function () {
                     }
 
                     if (msg.length) {
-                        packet = decodePacket(msg, binaryType, true);
+                        packet = socketio.decodePacket(msg, binaryType, true);
 
                         if (err.type == packet.type && err.data == packet.data) {
                             console.log("Error");
@@ -221,7 +221,7 @@ var actualCode = '(' + function () {
             //if (length != '') {
             //    console.log("Error");
             //}
-        }
+        };
 
         function decodePayloadAsBinary(data) {
             if (typeof data === 'string' || data == '' || !data) {
@@ -277,7 +277,7 @@ var actualCode = '(' + function () {
             var packets = [];
             buffers.forEach(function (buffer) {
                 // todo: binaryType
-                packets.push(decodePacket(buffer, 'arraybuffer', true));
+                packets.push(socketio.decodePacket(buffer, 'arraybuffer', true));
             });
             return packets;
         }
@@ -506,7 +506,7 @@ var actualCode = '(' + function () {
             }
 
             return str;
-        }
+        };
 
         function encodeBase64Packet(packet, callback) {
             var message = 'b' + exports.packets[packet.type];
@@ -541,7 +541,7 @@ var actualCode = '(' + function () {
             return callback(message);
         }
 
-        function encodePacket(packet, supportsBinary, utf8encode, callback) {
+        socketio.encodePacket = function(packet, supportsBinary, utf8encode, callback) {
             if ('function' == typeof supportsBinary) {
                 callback = supportsBinary;
                 supportsBinary = false;
@@ -581,7 +581,7 @@ var actualCode = '(' + function () {
             return encoded;
             //return callback('' + encoded);
 
-        }
+        };
 
         socketio.encodePayload = function(packets, supportsBinary, callback) {
             if (typeof supportsBinary == 'function') {
@@ -616,7 +616,7 @@ var actualCode = '(' + function () {
             // FIX: todo
             var res = "";
             for (var i = 0; i < packets.length; ++i) {
-                var msg = encodePacket(packets[i], !isBinary ? false : supportsBinary, true, function (message) {
+                var msg = socketio.encodePacket(packets[i], !isBinary ? false : supportsBinary, true, function (message) {
                 });
                 res += setLengthHeader(msg);
             }
@@ -625,11 +625,11 @@ var actualCode = '(' + function () {
             //    res += results.join('');
             //});
             return res;
-        }
+        };
 
         function encodePayloadAsBlob(packets, callback) {
             function encodeOne(packet, doneCallback) {
-                encodePacket(packet, true, true, function (encoded) {
+                socketio.encodePacket(packet, true, true, function (encoded) {
                     var binaryIdentifier = new Uint8Array(1);
                     binaryIdentifier[0] = 1;
                     if (typeof encoded === 'string') {
@@ -689,7 +689,7 @@ var actualCode = '(' + function () {
             var fr = new FileReader();
             fr.onload = function () {
                 packet.data = fr.result;
-                encodePacket(packet, supportsBinary, true, callback);
+                socketio.encodePacket(packet, supportsBinary, true, callback);
             };
             return fr.readAsArrayBuffer(packet.data);
         }

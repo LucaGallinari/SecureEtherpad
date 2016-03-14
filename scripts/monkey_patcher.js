@@ -77,8 +77,9 @@ var actualCode = '(' +
 
         // save the original WebSocket
         if (DEBUG) {
-            console.log("Overriding WebSocket");
+            console.log("Overriding the WebSocket implementation");
         }
+
         var OrigWebSocket = window.WebSocket;
         var callWebSocket = OrigWebSocket.apply.bind(OrigWebSocket);
         var wsAddListener = OrigWebSocket.prototype.addEventListener;
@@ -105,64 +106,93 @@ var actualCode = '(' +
             wsAddListener(ws, 'message', function(event) {
 
                 // the extension is disabled for this site
-                console.log(readCookie('secureEtherpadEnabled'));
                 if (readCookie('secureEtherpadEnabled') !== 'true') {
                     if (DEBUG) {
                         console.log("SecureEtherpad is DISABLED for this site");
                     }
                     return;
                 }
+
                 var secureAlgorithm = readCookie('secureEtherpadAlgorithm');
                 var secureKey = readCookie('secureEtherpadKey');
 
-                console.log("Algorithm in use:" + secureAlgorithm);
-
-                var dataObj = socketio.decodeString(event.data.substr(1));
-                if (!dataObj || !dataObj.hasOwnProperty('data')) {return;}
-                if (dataObj.data[0] == 'message') {
-
-                    // todo: better parsing
-                    var cTemp = event.data.substr(0, 1);
-                    var packet = dataObj.data[1];
-
-                    if (packet.hasOwnProperty('data')) {
-                        if (packet.data.hasOwnProperty('type')) {
-                            //noinspection JSUnresolvedVariable
-                            if (packet.data.type == 'NEW_CHANGES') {
-
-                                // This packet was already decode so let it be propagated to other listeners
-                                if ('decoded' in packet) {return;}
-
-                                if (DEBUG) {console.log("Received a message that must be decoded");}
-
-                                // decode data
-                                //noinspection JSUnresolvedVariable
-                                var packetData = packet.data.changeset;
-                                var subs = packetData.split('$');
-                                var mod = subs[0] + '$' + applySecureAlgorithm(secureAlgorithm, secureKey, subs[1], false);
-                                dataObj.data[1].data.changeset = mod;
-                                dataObj.data[1].decoded = true; // flag that avoid an infinite decode
-
-                                if (DEBUG) {console.log("from-> " + packetData + " to-> " + mod);}
-
-                                // Don't propagate the event to others listeners.
-                                // I do this because the data of the event are READ ONLY, so I have to fire a new
-                                // MessageEvent event, identical to the previous, but with decoded data in the payload
-                                event.stopImmediatePropagation();
-                                var messageEvent = new MessageEvent(
-                                    "message",
-                                    {
-                                        data: cTemp + socketio.encodeAsString(dataObj),
-                                        origin: event.origin,
-                                        lastEventId: event.lastEventId
-                                    }
-                                );
-                                ws.dispatchEvent(messageEvent);
-                            }
-                        }
-                    }
-
+                if (
+                    !('data' in event) ||
+                    event.data.charAt(0) != '4'
+                ) {
+                    return;
                 }
+
+
+
+
+
+                var packet = socketio.decodePacket(event.data, null);
+                if (
+                    !packet.hasOwnProperty('type') || !packet.hasOwnProperty('data') ||
+                    packet.type != 'message'
+                ) {
+                    return;
+                }
+
+                var packetObj = socketio.decodeString(packet.data);
+                if (
+                    !packetObj || !packetObj.hasOwnProperty('data') ||
+                    packetObj.data.length != 2 || !packetObj.data[1].hasOwnProperty('data') ||
+                    packetObj.data[1].hasOwnProperty('decoded') // This packet was already decode so let it be propagated to other listeners
+                ) {
+                    return;
+                }
+
+                var msg = packetObj.data[1].data;
+                if (
+                    !msg.hasOwnProperty('type') ||
+                    msg.type != 'NEW_CHANGES'
+                ) {
+                    return;
+                }
+
+                if (DEBUG) {
+                    console.log("Received a message that must be decoded:");
+                }
+
+                // split by the first '$' to get the pad and the text
+                var msgData = msg.changeset;
+                var splitIndex = msgData.indexOf('$');
+                var pad = msgData.substr(0, splitIndex);
+                var text = msgData.substr(splitIndex + 1);
+                var decodedText = applySecureAlgorithm(secureAlgorithm, secureKey, text, false);
+
+                if (DEBUG) {
+                    console.log("Pad: " + pad);
+                    console.log("Encoeded text: " + text);
+                    console.log("Decoded text: " + decodedText);
+                }
+
+                // save the data back into propers object
+                packetObj.data[1].data.changeset = pad + '$' + decodedText;
+                packetObj.data[1].decoded = true; // flag that avoid an infinite decode
+                packet.data = socketio.encodeAsString(packetObj);
+                var eventData = socketio.encodePacket(packet, null);
+
+
+
+
+
+                if (DEBUG) {
+                    console.log("Post-decoding event data: " + eventData);
+                }
+
+                // Don't propagate the event to others listeners.
+                // I do this because the data of the event are READ ONLY, so I have to fire a new
+                // MessageEvent event, identical to the previous, but with decoded data in the payload
+                event.stopImmediatePropagation();
+                var messageEvent = new MessageEvent("message", {
+                    data: eventData,
+                    origin: event.origin,
+                    lastEventId: event.lastEventId
+                });
+                ws.dispatchEvent(messageEvent);
             });
 
             return ws;

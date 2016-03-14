@@ -45,13 +45,9 @@ chrome.runtime.sendMessage(
     /**@param response {{settings:object}}*/
     function (response) {
         if (response) {
-            console.log("Settings for current url loaded");
             createCookie('secureEtherpadEnabled', response.settings.enabled, 1);
             createCookie('secureEtherpadAlgorithm', response.settings.algorithm, 1);
             createCookie('secureEtherpadKey', response.settings.key, 1);
-            console.log(readCookie('secureEtherpadEnabled'));
-            console.log(readCookie('secureEtherpadAlgorithm'));
-            console.log(readCookie('secureEtherpadKey'));
         } else {
             // error, so disable the extensions for this tab
             createCookie('secureEtherpadEnabled', false, 1);

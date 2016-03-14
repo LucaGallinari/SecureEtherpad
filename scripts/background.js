@@ -6,7 +6,7 @@
  * @author   Luca Gallinari <luke.gallinari@gmail.com>
  */
 
-var DEBUG = true;
+var DEBUG = false;
 
 // it's an object, not an array (this is important to avoid a lot of problems)
 var SETTINGS = {};
