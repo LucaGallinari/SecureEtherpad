@@ -10,7 +10,7 @@ var actualCode = '(' +
 
     function() {
 
-        var DEBUG = true;
+        var DEBUG = false;
 
         /**
          * Read a cookie
@@ -79,7 +79,7 @@ var actualCode = '(' +
          * Use socketio.js methods to decode the the given packet and replace the text with the encoded/decoded one.
          * @param packet {object}
          * @param encode {boolean}
-         * @return {object|boolean}
+         * @return {*}
          */
         function decodePacketAndApplyAlgorithm(packet, encode) {
 
@@ -145,7 +145,7 @@ var actualCode = '(' +
             }
             packetData.data = socketio.encodeAsString(packetObj);
 
-            return socketio.encodePacket(packetData, null);
+            return socketio.encodePacket(packetData, null, null);
         }
 
         // save the original WebSocket
@@ -234,17 +234,18 @@ var actualCode = '(' +
 
 
         //noinspection JSUnresolvedFunction
-        xhook.after(function(request, response) {
+        xhook.after(function (request, response) {
             // the extension is disabled for this site
             if (readCookie('secureEtherpadEnabled') !== 'true') {return;}
 
             if (200 == response.status || 1223 == response.status) {
 
-                // todo: something better than indexof?
-                if (response.data.indexOf("CLIENT_VARS") > -1 ) {
-
-                    var packets = socketio.decodePayload(response.data, null);
-                    for (var i=0; i<packets.length; ++i) {
+                if (response.data.indexOf("CLIENT_VARS") > -1) {
+                    var packets = [];
+                    socketio.decodePayload(response.data, null, function (packet) {
+                        packets.push(packet);
+                    });
+                    for (var i = 0; i < packets.length; ++i) {
 
                         var packet = socketio.decodeString(packets[i].data);
                         if (packet && packet.hasOwnProperty('data')) {
@@ -258,7 +259,9 @@ var actualCode = '(' +
                                 var initText = packet.data[1].data.collab_client_vars.initialAttributedText.text;
                                 var decodedText = applyAlgorithmToData(secureAlgorithm, secureKey, initText, false);
 
-                                if (DEBUG) {console.log("Decoded data: " + decodedText);}
+                                if (DEBUG) {
+                                    // console.log("Decoded data: " + decodedText);
+                                }
                                 // save text in the packet
                                 //noinspection JSUnresolvedVariable
                                 packet.data[1].data.collab_client_vars.initialAttributedText.text = decodedText;
@@ -269,7 +272,10 @@ var actualCode = '(' +
                     }
 
                     // write encoded payload back in the response
-                    response.text = socketio.encodePayload(packets, null, function() {});
+                    response.text = "";
+                    socketio.encodePayload(packets, null, function (msg) {
+                        response.text += msg;
+                    });
                 }
 
             }
