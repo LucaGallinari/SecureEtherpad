@@ -1,33 +1,18 @@
 /**
- * popup.js
+ * monkey_patcher.js
  *
  * @category scripts
  * @package  SecureEtherpad
  * @author   Luca Gallinari <luke.gallinari@gmail.com>
  */
 
+console.log(new Date().getTime() + ": monkey-patcher.js loaded: ");
+
 var actualCode = '(' +
 
     function() {
 
         var DEBUG = false;
-
-        /**
-         * Read a cookie
-         * @param name {string}
-         * @returns {string|null}
-         * @see http://stackoverflow.com/a/24103596/4670153
-         */
-        function readCookie(name) {
-            var nameEQ = name + "=";
-            var ca = document.cookie.split(';');
-            for (var i = 0; i < ca.length; i++) {
-                var c = ca[i];
-                while (c.charAt(0) == ' ') c = c.substring(1, c.length);
-                if (c.indexOf(nameEQ) == 0) return c.substring(nameEQ.length, c.length);
-            }
-            return null;
-        }
 
         /**
          * Apply a simple ROTATE 13 algorithm to given "data".
@@ -120,9 +105,8 @@ var actualCode = '(' +
                 console.log("Received a message that must be decoded:");
             }
 
-            // todo: save those in a global variable
-            var secureAlgorithm = readCookie('secureEtherpadAlgorithm');
-            var secureKey = readCookie('secureEtherpadKey');
+            var secureAlgorithm = window.secureEtherpadObject.algorithm;
+            var secureKey = window.secureEtherpadObject.secureKey;
 
             // split by the first '$' to get the pad and the text
             var msgData = msg.changeset;
@@ -176,8 +160,17 @@ var actualCode = '(' +
             // will always be fired for first.
             wsAddListener(ws, 'message', function(event) {
 
-                // the extension is disabled for this site
-                if (readCookie('secureEtherpadEnabled') !== 'true') {
+                if (!window.secureEtherpadObject) {
+                    console.log(
+                        "Settings for this page has not already been loaded. " +
+                        "The extension may not wrok properly. " +
+                        "Try to reload the page."
+                    );
+                    return;
+                }
+
+                // the extension is disabled for this site?
+                if (window.secureEtherpadObject.enabled !== 'true') {
                     if (DEBUG) {console.log("SecureEtherpad is DISABLED for this site");}
                     return;
                 }
@@ -215,14 +208,22 @@ var actualCode = '(' +
         // override the send function of the original WebSocket
         OrigWebSocket.prototype.send = function(data) {
 
-            // the extension is enabled for this site
-            if (data != '') {
-                if (readCookie('secureEtherpadEnabled') === 'true') {
-                    if (data.charAt(0) == '4') {
-                        var ret = decodePacketAndApplyAlgorithm(data, true);
-                        if (ret !== false) {
-                            //noinspection JSUnusedAssignment
-                            data = ret;
+            if (!window.secureEtherpadObject) {
+                console.log(
+                    "Settings for this page has not already been loaded. " +
+                    "The extension may not wrok properly. " +
+                    "Try to reload the page."
+                );
+            } else {
+                if (data != '') {
+                    // the extension is enabled for this site?
+                    if (window.secureEtherpadObject.enabled === 'true') {
+                        if (data.charAt(0) == '4') {
+                            var ret = decodePacketAndApplyAlgorithm(data, true);
+                            if (ret !== false) {
+                                //noinspection JSUnusedAssignment
+                                data = ret;
+                            }
                         }
                     }
                 }
@@ -235,8 +236,18 @@ var actualCode = '(' +
 
         //noinspection JSUnresolvedFunction
         xhook.after(function (request, response) {
-            // the extension is disabled for this site
-            if (readCookie('secureEtherpadEnabled') !== 'true') {return;}
+
+            if (!window.secureEtherpadObject) {
+                console.log(
+                    "Settings for this page has not already been loaded. " +
+                    "The extension may not wrok properly. " +
+                    "Try to reload the page."
+                );
+                return;
+            }
+
+            // the extension is disabled for this site?
+            if (window.secureEtherpadObject.enabled !== 'true') {return;}
 
             if (200 == response.status || 1223 == response.status) {
 
@@ -252,8 +263,8 @@ var actualCode = '(' +
 
                             if (packet.data[1].type == "CLIENT_VARS") {
 
-                                var secureAlgorithm = readCookie('secureEtherpadAlgorithm');
-                                var secureKey = readCookie('secureEtherpadKey');
+                                var secureAlgorithm = window.secureEtherpadObject.algorithm;
+                                var secureKey = window.secureEtherpadObject.secureKey;
 
                                 //noinspection JSUnresolvedVariable
                                 var initText = packet.data[1].data.collab_client_vars.initialAttributedText.text;
