@@ -19,7 +19,8 @@
   "background": {
     "scripts": [
       "scripts/background.js"
-    ]
+    ],
+    "persistent": false
   },
   "content_scripts": [
     {
@@ -28,7 +29,7 @@
         "scripts/setup.js",
         "scripts/xhook.js",
         "scripts/json3.min.js",
-        "scripts/modified-socket.io.js",
+        "scripts/imported-socket.io.js",
         "scripts/monkey_patcher.js"
       ],
       "all_frames": true,

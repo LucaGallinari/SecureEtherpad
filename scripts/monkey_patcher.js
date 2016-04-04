@@ -19,15 +19,15 @@ var actualCode = '(' +
          * Avoid encoding special codes (new line, ecc) to maintain the integrity of the payload.
          * @param data {string}
          * @param rotateNumber {int} rotate by number (+/-)
-         * @param encode {boolean} encode if true, decode if false
+         * @param encrypt {boolean} encode if true, decode if false
          * @returns {string}
          */
-        function rotateAlgorithm(data, rotateNumber, encode) {
+        function rotateAlgorithm(data, rotateNumber, encrypt) {
             var postProcessData = "", i;
             for (i = 0; i < data.length; ++i) {
                 if (data.charCodeAt(i) > 31) {
                     postProcessData += String.fromCharCode(
-                        data.charCodeAt(i) + (encode ? +rotateNumber : -rotateNumber)
+                        data.charCodeAt(i) + (encrypt ? +rotateNumber : -rotateNumber)
                     );
                 } else {
                     postProcessData += data.charAt(i);
@@ -41,17 +41,17 @@ var actualCode = '(' +
          * @param algorithm {string} algorithm to use
          * @param data {string}
          * @param key {string} if needed
-         * @param encode {boolean} encode if true, decode if false
+         * @param encrypt {boolean} encode if true, decode if false
          * @returns {string}
          */
-        function applyAlgorithmToData(algorithm, key, data, encode) {
+        function applyAlgorithmToData(algorithm, key, data, encrypt) {
             var postProcessData;
             switch (algorithm) {
                 case 'ROT13':
-                    postProcessData = rotateAlgorithm(data, 13, encode);
+                    postProcessData = rotateAlgorithm(data, 13, encrypt);
                     break;
                 case 'ROTN':
-                    postProcessData = rotateAlgorithm(data, parseInt(key), encode);
+                    postProcessData = rotateAlgorithm(data, parseInt(key), encrypt);
                     break;
                 default:
                     console.log('Invalid algorithm!');
@@ -63,10 +63,10 @@ var actualCode = '(' +
         /**
          * Use socketio.js methods to decode the the given packet and replace the text with the encoded/decoded one.
          * @param packet {object}
-         * @param encode {boolean}
+         * @param encrypt {boolean}
          * @return {*}
          */
-        function decodePacketAndApplyAlgorithm(packet, encode) {
+        function applyAlgorithmToPacketData(packet, encrypt) {
 
             var packetData = socketio.decodePacket(packet, null);
             if (
@@ -86,8 +86,8 @@ var actualCode = '(' +
 
             // If we are decoding, check if this packet was already decode, if so just return false
             if (
-                encode == false &&
-                packetObj.data[1].hasOwnProperty('decoded')
+                encrypt == false &&
+                packetObj.data[1].hasOwnProperty('decrypted')
             ) {
                 return false;
             }
@@ -102,7 +102,7 @@ var actualCode = '(' +
             }
 
             if (DEBUG) {
-                console.log("Received a message that must be decoded:");
+                console.log("Received a message that must be " + ( encrypt ? "encrypted:" : "decrypted:"));
             }
 
             var secureAlgorithm = window.secureEtherpadObject.algorithm;
@@ -114,7 +114,7 @@ var actualCode = '(' +
             var pad = msgData.substr(0, splitIndex);
             var text = msgData.substr(splitIndex + 1);
 
-            var postProcessData = applyAlgorithmToData(secureAlgorithm, secureKey, text, encode);
+            var postProcessData = applyAlgorithmToData(secureAlgorithm, secureKey, text, encrypt);
 
             if (DEBUG) {
                 console.log("Pad: " + pad);
@@ -124,8 +124,8 @@ var actualCode = '(' +
 
             // save the data back into propers objects
             packetObj.data[1].data.changeset = pad + '$' + postProcessData;
-            if (encode == false) {
-                packetObj.data[1].decoded = true; // flag that avoid an infinite decode
+            if (encrypt == false) {
+                packetObj.data[1].decrypted = true; // flag that avoid an infinite decrypt
             }
             packetData.data = socketio.encodeAsString(packetObj);
 
@@ -178,7 +178,7 @@ var actualCode = '(' +
                 // check that the event data is a 'message' (type=4)
                 if (!('data' in event) || event.data.charAt(0) != '4') {return;}
 
-                var eventData = decodePacketAndApplyAlgorithm(event.data, false);
+                var eventData = applyAlgorithmToPacketData(event.data, false);
                 if (eventData === false) {return;}// invalid packet
                 if (DEBUG) {console.log("Post-decoding event data: " + eventData);}
 
@@ -219,7 +219,7 @@ var actualCode = '(' +
                     // the extension is enabled for this site?
                     if (window.secureEtherpadObject.enabled === 'true') {
                         if (data.charAt(0) == '4') {
-                            var ret = decodePacketAndApplyAlgorithm(data, true);
+                            var ret = applyAlgorithmToPacketData(data, true);
                             if (ret !== false) {
                                 //noinspection JSUnusedAssignment
                                 data = ret;
@@ -268,11 +268,9 @@ var actualCode = '(' +
 
                                 //noinspection JSUnresolvedVariable
                                 var initText = packet.data[1].data.collab_client_vars.initialAttributedText.text;
+                                //noinspection UnnecessaryLocalVariableJS
                                 var decodedText = applyAlgorithmToData(secureAlgorithm, secureKey, initText, false);
-
-                                if (DEBUG) {
-                                    // console.log("Decoded data: " + decodedText);
-                                }
+                                
                                 // save text in the packet
                                 //noinspection JSUnresolvedVariable
                                 packet.data[1].data.collab_client_vars.initialAttributedText.text = decodedText;
@@ -294,7 +292,7 @@ var actualCode = '(' +
 
         //@ sourceURL=monkey_patcher.js
     }
-    //)
+        
 + ')();'; // the last () grant that the function will be called immediatly after being appended
 
 
