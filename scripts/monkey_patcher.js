@@ -14,6 +14,10 @@ var actualCode = '(' +
 
         var DEBUG = false;
 
+        function mod(n, m) {
+            return ((n % m) + m) % m;
+        }
+
         /**
          * Apply a simple ROTATE 13 algorithm to given "data".
          * Avoid encoding special codes (new line, ecc) to maintain the integrity of the payload.
@@ -25,10 +29,9 @@ var actualCode = '(' +
         function rotateAlgorithm(data, rotateNumber, encrypt) {
             var postProcessData = "", i;
             for (i = 0; i < data.length; ++i) {
-                if (data.charCodeAt(i) > 31) {
-                    postProcessData += String.fromCharCode(
-                        data.charCodeAt(i) + (encrypt ? +rotateNumber : -rotateNumber)
-                    );
+                if (data.charCodeAt(i) > 31 && data.charCodeAt(i) < 127) {
+                    var char = 32 + mod(data.charCodeAt(i) - 32 + (encrypt ? +rotateNumber : -rotateNumber), 95);
+                    postProcessData += String.fromCharCode(char);
                 } else {
                     postProcessData += data.charAt(i);
                 }
