@@ -1104,7 +1104,7 @@ var actualCode = '(' + function () {
             };
         })("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/");
 
-        //@ sourceURL=modified-socket.io.js
+        //@ sourceURL=imported-socket.io.js
         window.socketio = socketio;
 
     } + ')();'; // the last () grant that the function will be called immediatly after being appended

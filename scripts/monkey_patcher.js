@@ -103,27 +103,40 @@ var actualCode = '(' +
 
             if (DEBUG) {
                 console.log("Received a message that must be " + ( encrypt ? "encrypted:" : "decrypted:"));
+                console.log(packetObj);
             }
 
             var secureAlgorithm = window.secureEtherpadObject.algorithm;
             var secureKey = window.secureEtherpadObject.secureKey;
 
-            // split by the first '$' to get the pad and the text
             var msgData = msg.changeset;
-            var splitIndex = msgData.indexOf('$');
-            var pad = msgData.substr(0, splitIndex);
-            var text = msgData.substr(splitIndex + 1);
 
-            var postProcessData = applyAlgorithmToData(secureAlgorithm, secureKey, text, encrypt);
+            switch (secureAlgorithm) {
+                case 'ROT13':
+                case 'ROTN':
 
-            if (DEBUG) {
-                console.log("Pad: " + pad);
-                console.log("Before alg. text: " + text);
-                console.log("After alg. text: " + postProcessData);
+                    // split by the first '$' to get the pad and the text
+                    var splitIndex = msgData.indexOf('$');
+                    var pad = msgData.substr(0, splitIndex);
+                    var text = msgData.substr(splitIndex + 1);
+
+                    var postProcessData = applyAlgorithmToData(secureAlgorithm, secureKey, text, encrypt);
+
+                    if (DEBUG) {
+                        console.log("Pad: " + pad);
+                        console.log("Before alg. text: " + text);
+                        console.log("After alg. text: " + postProcessData);
+                    }
+
+                    // save the data back into propers objects
+                    packetObj.data[1].data.changeset = pad + '$' + postProcessData;
+
+                    break;
+                default:
+                    console.log('Invalid algorithm!');
+                    break;
             }
 
-            // save the data back into propers objects
-            packetObj.data[1].data.changeset = pad + '$' + postProcessData;
             if (encrypt == false) {
                 packetObj.data[1].decrypted = true; // flag that avoid an infinite decrypt
             }
@@ -221,6 +234,7 @@ var actualCode = '(' +
                         if (data.charAt(0) == '4') {
                             var ret = applyAlgorithmToPacketData(data, true);
                             if (ret !== false) {
+                                if (DEBUG) {console.log("Post-encoding send: " + ret);}
                                 //noinspection JSUnusedAssignment
                                 data = ret;
                             }
@@ -262,6 +276,10 @@ var actualCode = '(' +
                         if (packet && packet.hasOwnProperty('data')) {
 
                             if (packet.data[1].type == "CLIENT_VARS") {
+                                if (DEBUG) {
+                                    console.log("Packet to decode:");
+                                    console.log(packet);
+                                }
 
                                 var secureAlgorithm = window.secureEtherpadObject.algorithm;
                                 var secureKey = window.secureEtherpadObject.secureKey;

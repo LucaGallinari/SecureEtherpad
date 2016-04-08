@@ -19,18 +19,6 @@ var SETTINGS = {};
  * @returns {boolean}
  */
 function changeAlgorithmSetting(url, algorithm, key) {
-    switch (algorithm) {
-        case 'ROT13':
-            key = 13;
-            break;
-        case 'ROTN':
-            break;
-        default:
-            console.log('Invalid algorithm!');
-            return false;
-            break;
-    }
-
     if (SETTINGS[url]) {// already existent settings
         SETTINGS[url].algorithm = algorithm;
         SETTINGS[url].key = key;
