@@ -132,6 +132,13 @@ button:hover {
     width: 75px;
 }
 
+.info {
+    color:#a5a4a1;
+    font-size: 8pt;
+    white-space: normal;
+    text-align: center;
+}
+
 .hidden {
     display: none;
 }

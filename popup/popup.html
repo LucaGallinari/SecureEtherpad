@@ -28,7 +28,8 @@
                 </div>
                 <div class="hidden" id="rotnNumberRow">
                     <label for="rotnNumber">ROT N Number</label>
-                    <input type="number" id="rotnNumber" value="1" min="1" step="1">
+                    <input type="number" id="rotnNumber" value="1" min="0" max="10000" step="1">
+                    <div class="info">Range: 0 to 10000. But with a number > 94 it will apply a module of 95 to the key.</div>
                 </div>
                 <div class="center">
                     <button id="saveChanges">Save</button>

@@ -56,6 +56,7 @@ function applySettings(settings) {
 
         if (settings.algorithm == 'ROTN') {
             document.getElementById("rotnNumberRow").classList.remove('hidden');
+            document.getElementById("rotnNumber").value = settings.key;
         }
     }
 }
@@ -130,7 +131,7 @@ function saveChanges() {
         case 'ROTN':
             var algorithmKey = document.getElementById("rotnNumber").value;
             if (!checkPositiveNumber(algorithmKey)) {
-                alert("The key must be a number");
+                alert("The key must be a positive number.");
                 return;
             }
             sendChangeAlgorithmMessage(algorithmSelectVal, algorithmKey);
